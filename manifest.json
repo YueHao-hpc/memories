@@ -54,7 +54,13 @@
    "artist": "Adele",
    "audio": "memories/2026/07/APLMate.com - One and Only - Adele.mp3",
    "cover": "",
-   "items": []
+   "items": [
+    {
+     "type": "image",
+     "src": "memories/2026/07/3344.JPG",
+     "caption": "3344"
+    }
+   ]
   },
   "08": {
    "summary": "这个月的总结写在这里。上面两行填这个月最喜欢的歌，正文随便写多长都可以。",
