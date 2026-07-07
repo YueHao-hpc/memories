@@ -1,0 +1,27 @@
+name: 自动更新网站内容
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - manifest.json
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 扫描照片和视频，生成内容清单
+        run: python3 scripts/build.py
+
+      - name: 保存更新
+        run: |
+          git config user.name "memory-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add manifest.json
+          git diff --cached --quiet || git commit -m "自动更新内容清单"
+          git push
