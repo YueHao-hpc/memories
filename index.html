@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>月份唱片馆 · Monthly Memory</title>
+<style>
+  :root{
+    --ink:#0d0f14;
+    --paper:#f5efe4;
+    --paper-dim:rgba(245,239,228,.62);
+    --brass:#c9a227;
+    --vinyl:#111114;
+    --label-red:#b8453a;
+    --glass:rgba(13,15,20,.42);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    font-family:"Songti SC","Noto Serif CJK SC","Source Han Serif SC",Georgia,serif;
+    background:var(--ink);
+    color:var(--paper);
+    overflow:hidden;
+  }
+
+  .bg,.bg-blur{
+    position:fixed;inset:0;
+    background-size:cover;background-position:center;
+    transition:background-image .6s ease, opacity .6s ease;
+  }
+  .bg-blur{filter:blur(28px) brightness(.55) saturate(1.1);transform:scale(1.12)}
+  .bg{filter:brightness(.82)}
+  .bg::after{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(to top, rgba(13,15,20,.88) 0%, rgba(13,15,20,.25) 45%, rgba(13,15,20,.35) 100%);
+  }
+  .grain{
+    position:fixed;inset:0;pointer-events:none;opacity:.07;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.9'/%3E%3C/svg%3E");
+  }
+
+  .shelf{
+    position:fixed;left:0;top:0;bottom:0;z-index:4;
+    width:74px;
+    display:flex;flex-direction:column;align-items:center;
+    gap:.55rem;padding:1.4rem 0 5.5rem;
+    background:linear-gradient(to right, rgba(13,15,20,.85), rgba(13,15,20,.35) 80%, transparent);
+    overflow-y:auto;
+  }
+  .shelf::-webkit-scrollbar{width:0}
+  .shelf-cap{
+    font-family:ui-monospace,Menlo,monospace;font-size:.58rem;
+    letter-spacing:.3em;color:var(--paper-dim);
+    writing-mode:vertical-rl;margin-bottom:.4rem;
+  }
+  .spine{
+    writing-mode:vertical-rl;
+    font-family:ui-monospace,Menlo,monospace;
+    font-size:.8rem;letter-spacing:.35em;
+    color:var(--paper-dim);
+    background:rgba(245,239,228,.06);
+    border:1px solid rgba(245,239,228,.2);
+    border-radius:4px;
+    padding:1rem .42rem;
+    cursor:pointer;
+    transition:all .25s ease;
+  }
+  .spine:hover{color:var(--paper);border-color:rgba(245,239,228,.5)}
+  .spine.active{
+    color:var(--ink);background:var(--brass);border-color:var(--brass);
+    box-shadow:0 4px 18px rgba(201,162,39,.35);
+  }
+  .spine:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+
+  .stage{
+    position:relative;z-index:2;height:100%;
+    display:grid;grid-template-columns:1.15fr .85fr;
+    align-items:center;gap:2rem;
+    padding:2.6rem 4vw 6.5rem calc(74px + 3vw);
+  }
+
+  .liner{max-width:38rem;min-width:0}
+  .eyebrow{
+    font-size:.72rem;letter-spacing:.42em;color:var(--brass);
+    text-transform:uppercase;margin-bottom:1rem;
+    font-family:ui-monospace,Menlo,monospace;
+  }
+  .month-title{
+    font-size:clamp(2.2rem,4.6vw,3.8rem);
+    font-weight:600;line-height:1.08;letter-spacing:.02em;
+    text-shadow:0 2px 24px rgba(0,0,0,.45);
+  }
+  .month-en{
+    font-style:italic;font-size:1rem;color:var(--paper-dim);
+    margin-top:.35rem;letter-spacing:.12em;
+  }
+  .divider{width:56px;height:1px;background:var(--brass);margin:1.3rem 0;opacity:.85}
+  .summary{
+    font-size:1rem;line-height:1.95;color:var(--paper-dim);
+    max-height:7.8em;overflow:auto;padding-right:.6rem;
+    white-space:pre-wrap;
+  }
+  .summary::-webkit-scrollbar{width:3px}
+  .summary::-webkit-scrollbar-thumb{background:rgba(245,239,228,.25)}
+
+  .drawer{margin-top:1.5rem}
+  .drawer-cap{
+    font-family:ui-monospace,Menlo,monospace;
+    font-size:.62rem;letter-spacing:.34em;color:var(--paper-dim);
+    margin-bottom:.7rem;display:flex;align-items:center;gap:.6rem;
+  }
+  .drawer-cap::after{content:"";flex:1;height:1px;background:rgba(245,239,228,.18)}
+  .wall{
+    display:flex;gap:.9rem;overflow-x:auto;
+    padding:.8rem .4rem 1.1rem;
+    scroll-snap-type:x proximity;
+  }
+  .wall::-webkit-scrollbar{height:4px}
+  .wall::-webkit-scrollbar-thumb{background:rgba(245,239,228,.22);border-radius:2px}
+  .polaroid{
+    flex:0 0 auto;scroll-snap-align:start;
+    background:#faf6ec;padding:6px 6px 20px;
+    border-radius:2px;cursor:pointer;border:none;
+    box-shadow:0 8px 22px rgba(0,0,0,.5);
+    transition:transform .25s ease, box-shadow .25s ease;
+    position:relative;
+  }
+  .polaroid:nth-child(3n){transform:rotate(1.6deg)}
+  .polaroid:nth-child(3n+1){transform:rotate(-1.8deg)}
+  .polaroid:nth-child(3n+2){transform:rotate(.7deg)}
+  .polaroid:hover{transform:rotate(0) translateY(-5px) scale(1.03);box-shadow:0 14px 30px rgba(0,0,0,.6);z-index:2}
+  .polaroid:focus-visible{outline:2px solid var(--brass);outline-offset:3px}
+  .polaroid img,.polaroid video{
+    display:block;width:118px;height:118px;object-fit:cover;
+    background:#222;pointer-events:none;
+  }
+  .polaroid .tape{
+    position:absolute;top:-8px;left:50%;transform:translateX(-50%) rotate(-2deg);
+    width:44px;height:16px;background:rgba(201,162,39,.35);
+    border-left:1px dashed rgba(0,0,0,.15);border-right:1px dashed rgba(0,0,0,.15);
+  }
+  .polaroid .badge{
+    position:absolute;right:10px;top:10px;
+    width:26px;height:26px;border-radius:50%;
+    background:rgba(13,15,20,.62);color:var(--paper);
+    display:grid;place-items:center;font-size:.7rem;
+    backdrop-filter:blur(4px);
+  }
+  .polaroid .cap{
+    position:absolute;left:0;right:0;bottom:3px;
+    font-size:.6rem;color:#5a5348;text-align:center;
+    font-family:ui-monospace,Menlo,monospace;letter-spacing:.06em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px;
+  }
+  .wall-empty{
+    font-size:.82rem;color:var(--paper-dim);font-style:italic;
+    padding:1.1rem 0;letter-spacing:.06em;
+  }
+
+  .player{display:flex;flex-direction:column;align-items:center;gap:1.4rem}
+  .turntable{position:relative;width:min(300px,62vw);aspect-ratio:1}
+  .record{
+    position:absolute;inset:0;border-radius:50%;
+    background:
+      repeating-radial-gradient(circle at 50% 50%,
+        #16161a 0px,#16161a 2px,#0c0c0f 3px,#0c0c0f 5px),
+      var(--vinyl);
+    box-shadow:0 18px 60px rgba(0,0,0,.65), inset 0 0 0 6px #1c1c22;
+    display:grid;place-items:center;
+    animation:spin 14s linear infinite;
+    animation-play-state:paused;
+  }
+  .record::before{
+    content:"";position:absolute;inset:0;border-radius:50%;
+    background:conic-gradient(from 210deg, transparent 0deg, rgba(255,255,255,.10) 24deg, transparent 60deg, transparent 180deg, rgba(255,255,255,.06) 210deg, transparent 250deg);
+  }
+  .playing .record{animation-play-state:running}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .label{
+    width:38%;aspect-ratio:1;border-radius:50%;
+    background-size:cover;background-position:center;
+    background-color:var(--label-red);
+    box-shadow:0 0 0 5px rgba(245,239,228,.12), inset 0 0 18px rgba(0,0,0,.4);
+    display:grid;place-items:center;position:relative;
+  }
+  .label::after{
+    content:"";width:9px;height:9px;border-radius:50%;
+    background:var(--ink);box-shadow:0 0 0 3px rgba(245,239,228,.55);
+  }
+  .tonearm{
+    position:absolute;top:-6%;right:-4%;width:46%;height:60%;
+    transform-origin:82% 12%;
+    transform:rotate(-24deg);
+    transition:transform .9s cubic-bezier(.34,1.2,.4,1);
+    pointer-events:none;filter:drop-shadow(0 8px 10px rgba(0,0,0,.5));
+  }
+  .playing .tonearm{transform:rotate(4deg)}
+  .arm-base{
+    position:absolute;top:6%;right:10%;width:34px;height:34px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #e8d9a8, var(--brass) 55%, #7a5f14);
+  }
+  .arm-rod{
+    position:absolute;top:16%;right:15%;width:6px;height:70%;
+    background:linear-gradient(to bottom,#d9c98f,#8f7a2d);
+    border-radius:3px;transform:rotate(16deg);transform-origin:top;
+  }
+  .arm-head{
+    position:absolute;bottom:6%;right:38%;width:20px;height:34px;border-radius:5px;
+    background:linear-gradient(135deg,#2a2a30,#101014);
+    border:1px solid rgba(201,162,39,.6);
+  }
+  .now-playing{text-align:center}
+  .song{font-size:1.08rem;letter-spacing:.06em}
+  .artist{font-size:.8rem;color:var(--paper-dim);margin-top:.3rem;letter-spacing:.14em}
+  .play-btn{
+    margin-top:.9rem;width:52px;height:52px;border-radius:50%;
+    border:1px solid rgba(245,239,228,.4);background:var(--glass);
+    color:var(--paper);font-size:1.1rem;cursor:pointer;
+    backdrop-filter:blur(8px);transition:all .25s;
+  }
+  .play-btn:hover{border-color:var(--brass);color:var(--brass);transform:scale(1.05)}
+  .play-btn:focus-visible{outline:2px solid var(--brass);outline-offset:3px}
+
+  .filmstrip{
+    position:fixed;left:74px;right:0;bottom:0;z-index:3;
+    display:flex;gap:.45rem;justify-content:center;
+    padding:.9rem 1rem 1.1rem;
+    background:linear-gradient(to top, rgba(13,15,20,.92), transparent);
+    overflow-x:auto;
+  }
+  .frame{
+    flex:0 0 auto;width:54px;height:40px;border-radius:4px;
+    border:1px solid rgba(245,239,228,.25);
+    background-size:cover;background-position:center;
+    background-color:#1c1f27;
+    cursor:pointer;position:relative;
+    transition:all .25s ease;filter:saturate(.4) brightness(.75);
+  }
+  .frame span{
+    position:absolute;bottom:2px;left:4px;font-size:.6rem;
+    font-family:ui-monospace,Menlo,monospace;color:var(--paper);
+    text-shadow:0 1px 3px rgba(0,0,0,.9);
+  }
+  .frame .count{
+    position:absolute;top:2px;right:3px;font-size:.56rem;
+    font-family:ui-monospace,Menlo,monospace;color:var(--brass);
+    text-shadow:0 1px 3px rgba(0,0,0,.9);
+  }
+  .frame:hover{filter:none;transform:translateY(-3px)}
+  .frame.active{
+    filter:none;border-color:var(--brass);
+    box-shadow:0 0 0 1px var(--brass), 0 6px 16px rgba(0,0,0,.5);
+    transform:translateY(-5px);
+  }
+
+  .lightbox{
+    position:fixed;inset:0;z-index:9;
+    background:rgba(8,9,12,.9);backdrop-filter:blur(14px);
+    display:none;align-items:center;justify-content:center;
+    flex-direction:column;gap:1rem;padding:2.5rem;
+  }
+  .lightbox.open{display:flex}
+  .lb-media{
+    max-width:min(86vw,900px);max-height:72vh;
+    border-radius:4px;box-shadow:0 24px 80px rgba(0,0,0,.7);
+    background:#000;
+  }
+  .lb-cap{
+    font-size:.85rem;color:var(--paper-dim);letter-spacing:.1em;
+    font-family:ui-monospace,Menlo,monospace;
+  }
+  .lb-btn{
+    position:absolute;top:50%;transform:translateY(-50%);
+    width:46px;height:46px;border-radius:50%;
+    border:1px solid rgba(245,239,228,.35);background:var(--glass);
+    color:var(--paper);font-size:1rem;cursor:pointer;transition:all .2s;
+  }
+  .lb-btn:hover{border-color:var(--brass);color:var(--brass)}
+  .lb-prev{left:2rem}.lb-next{right:2rem}
+  .lb-close{
+    position:absolute;top:1.4rem;right:1.6rem;
+    background:none;border:none;color:var(--paper);
+    font-size:1.6rem;cursor:pointer;line-height:1;
+  }
+  .lb-close:hover{color:var(--brass)}
+
+  @media (max-width:900px){
+    body{overflow:auto}
+    .shelf{
+      position:fixed;left:0;right:0;top:0;bottom:auto;width:auto;
+      flex-direction:row;justify-content:center;align-items:center;
+      padding:.6rem 1rem;gap:.5rem;
+      background:linear-gradient(to bottom, rgba(13,15,20,.9), transparent);
+      overflow-x:auto;overflow-y:hidden;
+    }
+    .shelf-cap{display:none}
+    .spine{writing-mode:horizontal-tb;padding:.4rem .9rem;letter-spacing:.2em}
+    .stage{
+      grid-template-columns:1fr;gap:2.2rem;
+      padding:4.6rem 6vw 7rem;height:auto;min-height:100%;
+      text-align:center;
+    }
+    .player{order:-1}
+    .liner{max-width:none}
+    .divider{margin:1.3rem auto}
+    .drawer-cap{justify-content:center}
+    .drawer-cap::after{display:none}
+    .filmstrip{left:0}
+    .lb-prev{left:.7rem}.lb-next{right:.7rem}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .record{animation:none !important}
+    .tonearm{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-blur" id="bgBlur"></div>
+<div class="bg" id="bg"></div>
+<div class="grain"></div>
+
+<nav class="shelf" id="shelf" aria-label="年份唱片架">
+  <span class="shelf-cap">ARCHIVE</span>
+</nav>
+
+<main class="stage" id="stage">
+  <section class="liner">
+    <p class="eyebrow" id="eyebrow">MONTHLY MEMORY</p>
+    <h1 class="month-title" id="monthTitle">加载中</h1>
+    <p class="month-en" id="monthEn"></p>
+    <div class="divider"></div>
+    <p class="summary" id="summary"></p>
+
+    <div class="drawer">
+      <p class="drawer-cap" id="drawerCap">MEMORY DRAWER</p>
+      <div class="wall" id="wall"></div>
+    </div>
+  </section>
+
+  <section class="player">
+    <div class="turntable" id="turntable">
+      <div class="record"><div class="label" id="recordLabel"></div></div>
+      <div class="tonearm">
+        <div class="arm-rod"></div>
+        <div class="arm-base"></div>
+        <div class="arm-head"></div>
+      </div>
+    </div>
+    <div class="now-playing">
+      <p class="song" id="songName"></p>
+      <p class="artist" id="artistName"></p>
+      <button class="play-btn" id="playBtn" aria-label="播放或暂停">▶</button>
+    </div>
+  </section>
+</main>
+
+<nav class="filmstrip" id="filmstrip" aria-label="月份切换"></nav>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-label="查看回忆">
+  <button class="lb-close" id="lbClose" aria-label="关闭">✕</button>
+  <button class="lb-btn lb-prev" id="lbPrev" aria-label="上一个">◀</button>
+  <div id="lbHolder"></div>
+  <p class="lb-cap" id="lbCap"></p>
+  <button class="lb-btn lb-next" id="lbNext" aria-label="下一个">▶</button>
+</div>
+
+<audio id="audio" loop></audio>
+
+<script>
+/* 网站内容全部来自 manifest.json，
+   而 manifest.json 由 GitHub 根据你文件夹里的内容自动生成。
+   所以：你只管往 memories/年份/月份/ 里放东西就好。 */
+
+const MONTH_NAMES = [
+  ["一月","January"],["二月","February"],["三月","March"],["四月","April"],
+  ["五月","May"],["六月","June"],["七月","July"],["八月","August"],
+  ["九月","September"],["十月","October"],["十一月","November"],["十二月","December"]
+];
+
+const FALLBACK = [
+  ["#2b3a55","#4f6d7a"],["#3d2c40","#7a4f5d"],["#2c4034","#5d7a4f"],
+  ["#40352c","#7a6b4f"],["#2c3a40","#4f6d7a"],["#35402c","#6b7a4f"],
+  ["#402c2c","#7a4f4f"],["#2c4038","#4f7a68"],["#3a2c40","#684f7a"],
+  ["#40382c","#7a684f"],["#2c3340","#4f5d7a"],["#332c40","#5d4f7a"],
+];
+
+let ARCHIVE = {};
+let years = [];
+let currentYear = null;
+let currentMonth = 0;   /* 0 到 11 */
+let playing = false;
+let lbIndex = 0;
+
+const $ = id => document.getElementById(id);
+const audio = $("audio");
+const mmKey = i => String(i+1).padStart(2,"0");
+
+function monthData(y,i){
+  const raw = (ARCHIVE[y] && ARCHIVE[y][mmKey(i)]) || {};
+  return Object.assign(
+    {summary:"", song:"", artist:"", audio:"", cover:"", items:[]},
+    raw
+  );
+}
+const monthNow = () => monthData(currentYear, currentMonth);
+
+function bgValue(m,i){
+  const pic = m.cover || (m.items.find(x=>x.type==="image")||{}).src;
+  if(pic) return `url("${encodeURI(pic)}")`;
+  const [a,b] = FALLBACK[i];
+  return `linear-gradient(135deg, ${a}, ${b})`;
+}
+
+function renderShelf(){
+  const shelf = $("shelf");
+  shelf.querySelectorAll(".spine").forEach(s=>s.remove());
+  years.forEach(y=>{
+    const b = document.createElement("button");
+    b.className = "spine" + (y===currentYear ? " active" : "");
+    b.textContent = y;
+    b.addEventListener("click", ()=>{
+      currentYear = y; currentMonth = 0;
+      setPlaying(false); renderShelf(); render();
+    });
+    shelf.appendChild(b);
+  });
+}
+
+function renderWall(){
+  const wall = $("wall");
+  wall.innerHTML = "";
+  const items = monthNow().items;
+  $("drawerCap").textContent = `MEMORY DRAWER · ${items.length} ITEM${items.length===1?"":"S"}`;
+  if(items.length===0){
+    wall.innerHTML = '<p class="wall-empty">这个月的抽屉还是空的。把照片或视频放进对应的文件夹，它们就会出现在这里。</p>';
+    return;
+  }
+  items.forEach((it,i)=>{
+    const card = document.createElement("button");
+    card.className = "polaroid";
+    card.setAttribute("aria-label", it.caption || (it.type==="video"?"视频":"照片"));
+    const src = encodeURI(it.src);
+    const media = it.type==="video"
+      ? `<video src="${src}" muted preload="metadata"></video><span class="badge">▶</span>`
+      : `<img src="${src}" alt="" loading="lazy">`;
+    card.innerHTML = `<span class="tape"></span>${media}<span class="cap">${it.caption||""}</span>`;
+    card.addEventListener("click", ()=> openLightbox(i));
+    wall.appendChild(card);
+  });
+}
+
+function openLightbox(i){
+  lbIndex = i;
+  renderLightbox();
+  $("lightbox").classList.add("open");
+}
+function closeLightbox(){
+  $("lightbox").classList.remove("open");
+  $("lbHolder").innerHTML = "";
+}
+function renderLightbox(){
+  const items = monthNow().items;
+  if(items.length===0){ closeLightbox(); return; }
+  lbIndex = (lbIndex + items.length) % items.length;
+  const it = items[lbIndex];
+  const src = encodeURI(it.src);
+  $("lbHolder").innerHTML = it.type==="video"
+    ? `<video class="lb-media" src="${src}" controls autoplay></video>`
+    : `<img class="lb-media" src="${src}" alt="">`;
+  $("lbCap").textContent =
+    `${it.caption || (it.type==="video"?"视频":"照片")} · ${lbIndex+1} / ${items.length}`;
+}
+$("lbClose").addEventListener("click", closeLightbox);
+$("lbPrev").addEventListener("click", ()=>{ lbIndex--; renderLightbox(); });
+$("lbNext").addEventListener("click", ()=>{ lbIndex++; renderLightbox(); });
+$("lightbox").addEventListener("click", e=>{ if(e.target===$("lightbox")) closeLightbox(); });
+
+function render(){
+  const m = monthNow();
+  const [zh,en] = MONTH_NAMES[currentMonth];
+  $("bg").style.backgroundImage = bgValue(m,currentMonth);
+  $("bgBlur").style.backgroundImage = bgValue(m,currentMonth);
+  $("eyebrow").textContent =
+    `VOL. ${currentYear} · SIDE ${currentMonth<6?"A":"B"} · TRACK ${mmKey(currentMonth)}`;
+  $("monthTitle").textContent = zh;
+  $("monthEn").textContent = `${en} ${currentYear}`;
+  $("summary").textContent = m.summary || "这个月还没有写总结。";
+  $("songName").textContent = m.song || "还没有放上唱片";
+  $("artistName").textContent = m.artist || (m.audio ? "" : "把音频文件放进这个月的文件夹");
+  const labelPic = m.cover || (m.items.find(x=>x.type==="image")||{}).src;
+  $("recordLabel").style.backgroundImage = labelPic ? `url("${encodeURI(labelPic)}")` : "none";
+
+  document.querySelectorAll(".frame").forEach((f,i)=>{
+    const md = monthData(currentYear,i);
+    f.classList.toggle("active", i===currentMonth);
+    f.style.backgroundImage = bgValue(md,i);
+    const n = md.items.length;
+    f.querySelector(".count").textContent = n>0 ? n : "";
+  });
+
+  renderWall();
+
+  if(m.audio){
+    const url = encodeURI(m.audio);
+    if(audio.getAttribute("src")!==url){ audio.src = url; }
+    if(playing) audio.play().catch(()=>{});
+  } else {
+    audio.removeAttribute("src"); audio.load();
+  }
+}
+
+function setPlaying(p){
+  playing = p;
+  $("turntable").classList.toggle("playing", p);
+  $("playBtn").textContent = p ? "❚❚" : "▶";
+  const m = monthNow();
+  if(m.audio){ p ? audio.play().catch(()=>{}) : audio.pause(); }
+  else if(!p){ audio.pause(); }
+}
+$("playBtn").addEventListener("click", ()=> setPlaying(!playing));
+
+MONTH_NAMES.forEach((_,i)=>{
+  const f = document.createElement("button");
+  f.className = "frame";
+  f.setAttribute("aria-label", MONTH_NAMES[i][0]);
+  f.innerHTML = `<span>${i+1}月</span><span class="count"></span>`;
+  f.addEventListener("click", ()=>{ currentMonth = i; render(); });
+  $("filmstrip").appendChild(f);
+});
+
+document.addEventListener("keydown", e=>{
+  if($("lightbox").classList.contains("open")){
+    if(e.key==="Escape") closeLightbox();
+    if(e.key==="ArrowRight"){ lbIndex++; renderLightbox(); }
+    if(e.key==="ArrowLeft"){ lbIndex--; renderLightbox(); }
+    return;
+  }
+  if(!currentYear) return;
+  if(e.key==="ArrowRight"){ currentMonth=(currentMonth+1)%12; render(); }
+  if(e.key==="ArrowLeft"){ currentMonth=(currentMonth+11)%12; render(); }
+  if(e.key==="ArrowUp" || e.key==="ArrowDown"){
+    let idx = years.indexOf(currentYear);
+    idx = e.key==="ArrowUp" ? (idx+1)%years.length : (idx+years.length-1)%years.length;
+    currentYear = years[idx]; currentMonth = 0;
+    setPlaying(false); renderShelf(); render();
+  }
+});
+
+/* ---------- 启动：读取内容清单 ---------- */
+fetch("manifest.json", {cache:"no-store"})
+  .then(r => { if(!r.ok) throw new Error(); return r.json(); })
+  .then(data => {
+    ARCHIVE = data;
+    years = Object.keys(ARCHIVE).sort();
+    if(years.length===0) throw new Error();
+    currentYear = years[years.length-1];
+    /* 默认打开当前月份（如果是今年） */
+    const now = new Date();
+    if(Number(currentYear)===now.getFullYear()) currentMonth = now.getMonth();
+    renderShelf();
+    render();
+  })
+  .catch(()=>{
+    $("monthTitle").textContent = "还没有内容";
+    $("summary").textContent =
+      "网站还没读到内容清单。如果你刚上传完文件，等一两分钟刷新即可，GitHub 正在自动整理。";
+    $("songName").textContent = "";
+    $("artistName").textContent = "";
+  });
+</script>
+</body>
+</html>
